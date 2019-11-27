@@ -4,7 +4,7 @@ const auth = require('mixer-shortcode-oauth');
 // const ws = require('ws');
 // const request = require('request');
 
-// let userInfo
+// let userInfo;
 
 // const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
 
