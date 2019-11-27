@@ -1,42 +1,67 @@
 const mixer = require('@mixer/interactive-node');
 const auth = require('mixer-shortcode-oauth');
-// const Mixer = require('@mixer/client-node');
-// const ws = require('ws');
-// const request = require('request');
+const Mixer = require('@mixer/client-node');
+const ws = require('ws');
+const request = require('request');
 
-// let userInfo;
+let userInfo;
+const myiduser = 4509390; // Id do usuario do canal
+const channelId = 3553359; // Id do canal
 
-// const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
+const client = new Mixer.Client(new Mixer.DefaultRequestRunner());
 
-// // With OAuth we don't need to log in. The OAuth Provider will attach
-// // the required information to all of our requests after this call.
-// client.use(new Mixer.OAuthProvider(client, {
-//     tokens: {
-//         access: '2UAxih3oYRJVoVewG824NUyZGzukz406qk5RxHlm2B9NaxuAhYnNiUbKiQo73Mei',
-//         expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
-//     },
-// }));
+// With OAuth we don't need to log in. The OAuth Provider will attach
+// the required information to all of our requests after this call.
+client.use(new Mixer.OAuthProvider(client, {
+    tokens: {
+        access: 'QPl4ynCMxR4lURUZmBjbXx562UqayJKXAiG5IuPkqx9RDvOQpGsFui4JVKBcy7I5',
+        expires: Date.now() + (365 * 24 * 60 * 60 * 1000)
+    },
+}));
 
-// // Gets the user that the Access Token we provided above belongs to.
-// client.request('GET', 'users/current')
-// .then(response => {
-//     console.log(response.body);
+// Pega o usuario do Access Token.
+client.request('GET', 'users/current')
+.then(response => {
+    //console.log(response.body);
 
-//     // Store the logged in user's details for later reference
-//     userInfo = response.body;
+    // Store the logged in user's details for later reference
+    userInfo = response.body;
 
-//     // Returns a promise that resolves with our chat connection details.
-//     return new Mixer.ChatService(client).join(response.body.channel.id);
-// })
-// .then(response => {
-//     const body = response.body;
-//     console.log(body);
-//     // TODO: Connect to chat, we'll do this in the next tutorial step :)!
-// })
-// .catch(error => {
-//     console.error('Something went wrong.');
-//     console.error(error);
-// });
+    // Returns a promise that resolves with our chat connection details.
+    return new Mixer.ChatService(client).join(response.body.channel.id);
+})
+.then(response => {
+    const body = response.body;
+    //console.log(body); //Dados
+    return createChatSocket(userInfo.id, userInfo.channel.id, body.endpoints, body.authkey);
+})
+.catch(error => {
+    console.error('Algo de errado aconteceu');
+    console.error(error);
+});
+var socket;
+// Funcação do chat
+function createChatSocket (userId, channelId, endpoints, authkey) {
+    socket = new Mixer.Socket(ws, endpoints).boot();
+    
+    // You don't need to wait for the socket to connect before calling
+    // methods. We spool them and run them when connected automatically.
+    socket.auth(channelId, userId, authkey)
+    .then(() => {
+        console.log('Agora estamos autenticados');
+        // Send a chat message
+        return socket.call('whisper', ['Felipecss','Olá Mundo']);
+    })
+    .catch(error => {
+        console.error('Oh não! Ocorreu um erro.');
+        console.error(error);
+        SMSDownServer(error)
+    });
+
+    socket.on('UserUpdate', data =>{
+        console.log(data)
+    })
+}
 
 // Place your app info in mixerauth.json, schema is:
 // {
@@ -70,33 +95,6 @@ class MinimalMixerGameClient {
         this.client.on('message', (err) => console.log('<<<', err));
         this.client.on('send', (err) => {
             console.log('>>>', err);
-
-            // send this back to all viewers
-            if (err.method == "giveInput") {
-                var data = {
-                    "scope": [
-                        "group:default"
-                    ],
-                    "data": {
-                        "my-control": {
-                            "with": "custom data"
-                        }
-                    }
-                };
-                this.client.broadcastEvent(data);
-
-                const options = {
-                    url: 'http://localhost:8911/api/chat/message',
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    json: true,
-                };
-                console.log('feito')
-                this.client.broadcastEvent(options);
-            }
         });
 
         this.client
@@ -108,8 +106,8 @@ class MinimalMixerGameClient {
         this.client.on('message', (err) => {
             console.log('<<<', err);
             const blob = JSON.parse(err);
-            console.log('client')
-            console.log(blob)
+            // console.log('client')
+            // console.log(blob)
 
             if (blob.method == 'giveInput') {
                 console.log('Sending data to custom control...');
@@ -130,18 +128,89 @@ class MinimalMixerGameClient {
     }
 
     goLive() {
-        console.log('going live');
         this.client
-            .ready()
-            .then(() => console.log('client ready'))
-            .catch(e => {
-                console.error('interactive client error readying: ', e);
-                throw e;
-            });
-    }
+        .ready().then(() => this.client.synchronizeScenes())
+        .then(() => {
+            console.log('client ready')
 
-    mixerGameClientError(error) {
-        console.error('interactive error: ', error);
+            //Botao do Logo Menu
+            this.client.state.getControl("logo").on("mousedown", clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    console.log("Got my money."); 
+                }).catch((err) => { console.error(err) });
+                console.log('HERE')
+                console.log(clickEvent);
+            });
+
+            //Botao de Doar 1000
+            this.client.state.getControl("doar1000").on("mousedown", clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    let username = this.client.state
+                    .getParticipants()
+                    .get(clickEvent.participantID).username;
+                    socket.call('whisper', [username, `Obrigado pelos 1.000 :spark`])
+                }).catch((err) => { console.error(err) });
+            });
+
+            //Botao de Doar 5000
+            this.client.state.getControl("doar5000").on("mousedown", clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    let username = this.client.state
+                    .getParticipants()
+                    .get(clickEvent.participantID).username;
+                    socket.call('whisper', [username, `Obrigado pelos 5.000 :spark`])
+                }).catch((err) => { console.error(err) });
+            });
+
+            //Botao Doar 15000
+            this.client.state.getControl("doar15000").on("mousedown", clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    let username = this.client.state
+                    .getParticipants()
+                    .get(clickEvent.participantID).username;
+                    socket.call('whisper', [username, `Obrigado pelos 15.000 :spark `])
+                }).catch((err) => { console.error(err) });
+            });
+            //Botao Logo Canal
+            this.client.state.getControl("channelLogo").on("mousedown", async clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    let username = this.client.state
+                    .getParticipants()
+                    .get(clickEvent.participantID).username;
+                    socket.call('msg', [`@${username} nosso site oficial está passando por atualizações. Estamos preparando e desenvolvendo muitas novidades para vocês. Acesse: https://www.vemvalaralouca.com.br e ou nos visite nas redes sociais para ficar por dentro de toda as novidades.`])
+                }).catch((err) => { console.error(err) });
+            });
+
+            //Botao Instagram
+            this.client.state.getControl("btnInstagram").on("mousedown", async clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    let username = this.client.state
+                    .getParticipants()
+                    .get(clickEvent.participantID).username;
+                    socket.call('whisper', [username, `Me siga no instagram, acesse https://twitter.com/felipecss :salute`])
+                }).catch((err) => { console.error(err) });
+            });
+
+            //Botao Twitter 
+            this.client.state.getControl("btnTwitter").on("mousedown", async clickEvent => {
+                this.client.captureTransaction(clickEvent.transactionID)
+                .then(() => { 
+                    let username = this.client.state
+                    .getParticipants()
+                    .get(clickEvent.participantID).username;
+                    socket.call('whisper', [username, `Me siga no Twitter, bora bater um papo. Acesse https://twitter.com/felipecss`])
+                }).catch((err) => { console.error(err) });
+            });
+        }).catch(e => {
+            console.error('interactive client error readying: ', e);
+            throw e;
+        });
     }
 }
 
