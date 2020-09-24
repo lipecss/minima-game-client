@@ -1,1 +1,7 @@
-{"access_token":"iomIhxGFZiLGgFbZgaaHqAOZM12INm8165vMmq12WDSAsu95Qmr0sxjPwE1O8tvx","token_type":"Bearer","expires_in":21599,"refresh_token":"cY3EcQWEqhufzyzlju9p0W6WtIrrwVMyyLmhbcuWTRE0PfbceC15MCagPMInvKLs","expires_at":"2019-11-28T02:31:33.999Z"}
+{
+"access_token":"",
+"token_type":"Bearer",
+"expires_in":21599,
+"refresh_token":"refresh token here",
+"expires_at":"2019-11-28T02:31:33.999Z"
+}
